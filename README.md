@@ -12,7 +12,7 @@ This is a bachelor's thesis project at ETH Zürich (Distributed Computing Group)
 
 ```
 Round t:
-                        ┌─────────────────────────────────┐
+                        ┌──────────────────────────────────┐
                         │         Parameter Server         │
                         │  θ  ──► Byzantine Filter ──►  θ' │
                         └──────┬────────────────▲──────────┘
@@ -60,7 +60,7 @@ Five strategies are implemented, covering the full range from non-federated base
 |-------------|-----------|----------------|-------------|-----------------|
 | Independent | No        | No             | No          | Lower bound     |
 | Centralized | No        | No             | No          | Upper bound     |
-| GPOMDP       | Yes       | No             | No          | Vanilla baseline|
+| GPOMDP      | Yes       | No             | No          | Vanilla baseline|
 | SVRPG       | Yes       | SCSG           | No          | Trusted agents  |
 | FedPG-BR    | Yes       | SCSG           | Yes         | Byzantine agents|
 
@@ -121,17 +121,17 @@ Any parameter not specified falls back to per-environment defaults in `config.py
 | `paper_cartpole.toml`           | CartPole-v1     | FedPG-BR    | 312                 |
 | `paper_cartpole_svrpg.toml`     | CartPole-v1     | SVRPG       | 312                 |
 | `compare_independent.toml`      | CartPole-v1     | Independent | 312                 |
-| `compare_fedpg.toml`            | CartPole-v1     | GPOMDP       | 312                 |
+| `compare_fedpg.toml`            | CartPole-v1     | GPOMDP      | 312                 |
 | `compare_centralized.toml`      | CartPole-v1     | Centralized | 312                 |
 | `paper_lunarlander.toml`        | LunarLander-v3  | FedPG-BR    | 323                 |
-| `paper_lunarlander_gpomdp.toml`  | LunarLander-v3  | GPOMDP       | 323                 |
+| `paper_lunarlander_gpomdp.toml` | LunarLander-v3  | GPOMDP      | 323                 |
 | `pursuit_afedpg.toml`           | Pursuit-v4      | FedPG-BR    | 200                 |
-| `pursuit_fedpg.toml`            | Pursuit-v4      | GPOMDP       | 200                 |
+| `pursuit_fedpg.toml`            | Pursuit-v4      | GPOMDP      | 200                 |
 | `byz_afedpg_30pct.toml`         | CartPole-v1     | FedPG-BR    | 350, 30% sign-flip  |
-| `byz_fedpg_30pct.toml`          | CartPole-v1     | GPOMDP       | 350, 30% sign-flip  |
+| `byz_fedpg_30pct.toml`          | CartPole-v1     | GPOMDP      | 350, 30% sign-flip  |
 | `byz_svrpg_30pct.toml`          | CartPole-v1     | SVRPG       | 350, 30% sign-flip  |
 | `pursuit_byz_afedpg_30pct.toml` | Pursuit-v4      | FedPG-BR    | 200, 30% sign-flip  |
-| `pursuit_byz_fedpg_30pct.toml`  | Pursuit-v4      | GPOMDP       | 200, 30% sign-flip  |
+| `pursuit_byz_fedpg_30pct.toml`  | Pursuit-v4      | GPOMDP      | 200, 30% sign-flip  |
 
 ---
 
@@ -141,7 +141,7 @@ Seven attack types for robustness evaluation, reproduced from the FedPG-BR paper
 
 | Key               | Name            | Description                                              |
 |-------------------|-----------------|----------------------------------------------------------|
-| `sign-flip`       | Sign Flip       | Sends -2.5 x true gradient                              |
+| `sign-flip`       | Sign Flip       | Sends -2.5 x true gradient                               |
 | `random-noise`    | Random Noise    | Sends a random gradient vector                           |
 | `random-action`   | Random Action   | Collects trajectories with a random policy               |
 | `fedpg-attack`    | FedPG Attack    | Coordinated attack designed to evade the Byzantine filter|
