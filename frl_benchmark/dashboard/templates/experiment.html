@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flower FRL Benchmark</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #dbeafe;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        /* Top navigation */
+        .topbar {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .topbar .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+        }
+
+        .status-dot.running { background: var(--success); animation: pulse 2s infinite; }
+        .status-dot.idle { background: #94a3b8; }
+
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+        /* Layout */
+        .layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            height: calc(100vh - 53px);
+        }
+
+        /* Sidebar - Config panel */
+        .sidebar {
+            background: var(--card);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .sidebar h2 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            background: var(--bg);
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .form-group .hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.15s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover { background: #1d4ed8; }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+            margin-top: 8px;
+        }
+
+        .btn-danger:hover { background: #b91c1c; }
+
+        .btn-tensorboard {
+            background: white;
+            color: #d97706;
+            border: 1px solid #d97706;
+            margin-top: 8px;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+
+        .btn-tensorboard:hover { background: #fffbeb; }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 20px 0;
+        }
+
+        /* Strategy info card */
+        .strategy-info {
+            background: var(--primary-light);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+        }
+
+        .strategy-info .name {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Main content */
+        .main {
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .stat-card .value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-card .label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Chart cards */
+        .chart-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .chart-card h3 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+
+        /* Workers grid */
+        .workers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .worker {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        .worker.good { border-color: var(--success); background: #f0fdf4; }
+        .worker.byzantine { border-color: var(--danger); background: #fef2f2; }
+        .worker .icon { font-size: 1.3rem; margin-bottom: 4px; }
+
+        /* Strategy comparison */
+        .strategy-pills {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            background: var(--bg);
+        }
+
+        .pill.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* Log area */
+        .log-area {
+            background: #0f172a;
+            color: #94a3b8;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-area .log-entry { margin-bottom: 2px; }
+        .log-area .round-num { color: #38bdf8; }
+        .log-area .reward { color: #4ade80; }
+        .log-area .method { color: #c084fc; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>Flower FRL Benchmark</h1>
+        <div style="display:flex;align-items:center;gap:16px;">
+            <a href="http://localhost:6006" target="_blank" class="btn btn-tensorboard" style="width:auto;padding:6px 14px;margin-top:0;">TensorBoard</a>
+            <div class="status">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">Idle</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="layout">
+        <!-- Sidebar: Configuration -->
+        <div class="sidebar">
+            <h2>Experiment Configuration</h2>
+
+            <div class="form-group">
+                <label>Environment</label>
+                <select id="env-select">
+                    <option value="Pursuit-v4">Pursuit-v4 (multi-robot)</option>
+                    <option value="SimpleSpread-v3">SimpleSpread-v3 (multi-robot)</option>
+                    <option value="CartPole-v1">CartPole-v1</option>
+                    <option value="LunarLander-v3">LunarLander-v3</option>
+                    <option value="HalfCheetah-v5">HalfCheetah-v5</option>
+                    <option value="MountainCar-v0">MountainCar-v0</option>
+                    <option value="Acrobot-v1">Acrobot-v1</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Strategy</label>
+                <select id="method-select" onchange="updateStrategyInfo()">
+                    <option value="fedpg-br">FedPG-BR (Byzantine + SCSG)</option>
+                    <option value="svrpg">SVRPG (SCSG only)</option>
+                    <option value="gpomdp">GPOMDP (Simple averaging)</option>
+                    <option value="independent">Independent RL (no federation)</option>
+                    <option value="centralized">Centralized (Oracle upper bound)</option>
+                </select>
+            </div>
+
+            <div class="strategy-info" id="strategy-info">
+                <div class="name">FedPG-BR</div>
+                Byzantine filtering + SCSG variance reduction.
+            </div>
+
+            <div class="form-group">
+                <label>Workers (K)</label>
+                <input type="number" id="num-workers" value="10" min="2" max="50">
+                <div class="hint">Total agents in federation</div>
+            </div>
+
+            <div class="form-group">
+                <label>Byzantine Agents (B)</label>
+                <input type="number" id="num-byzantine" value="0" min="0" max="20">
+                <div class="hint">Set 0 for clean setting, 3 for 30% Byzantine ratio</div>
+            </div>
+
+            <div class="form-group">
+                <label>Server Rounds</label>
+                <input type="number" id="num-rounds" value="312" min="10" max="5000">
+            </div>
+
+            <div class="form-group">
+                <label>Global Seed</label>
+                <input type="number" id="seed" value="42" min="0" max="999999">
+                <div class="hint">For reproducible runs across workers and server</div>
+            </div>
+
+            <div class="form-group">
+                <label>Round Timeout (seconds)</label>
+                <input type="number" id="round-timeout" value="600" min="60" max="7200" step="60">
+                <div class="hint">Max time to wait for all workers per round</div>
+            </div>
+
+            <div class="form-group">
+                <label>Attack Type</label>
+                <select id="attack-type">
+                    <option value="none">None (honest agents)</option>
+                    <option value="random-noise">Random Noise (RN)</option>
+                    <option value="sign-flip">Sign Flip (SF, -2.5x)</option>
+                    <option value="random-action">Random Actions (RA)</option>
+                    <option value="fedpg-attack">FedPG Attack (sophisticated)</option>
+                    <option value="variance-attack">Variance Attack (VA)</option>
+                    <option value="zero-gradient">Zero Gradient</option>
+                    <option value="reward-flipping">Reward Flipping</option>
+                </select>
+            </div>
+
+            <div class="divider"></div>
+
+            <details style="margin-bottom:16px">
+                <summary style="cursor:pointer;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);font-weight:600;">Advanced Settings</summary>
+                <div style="margin-top:12px">
+                    <div class="form-group">
+                        <label>Batch Size</label>
+                        <input type="number" id="batch-size" value="16" min="1" max="128">
+                        <div class="hint">Trajectories per worker per round</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Learning Rate</label>
+                        <input type="number" id="learning-rate" value="0.001" min="0.00001" max="1" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label>Sigma (filter threshold)</label>
+                        <input type="number" id="sigma" value="0.06" min="0.01" max="5" step="0.01">
+                        <div class="hint">Higher = more lenient Byzantine filter</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Gamma (discount)</label>
+                        <input type="number" id="gamma" value="0.999" min="0.9" max="1" step="0.001">
+                    </div>
+                    <div class="form-group">
+                        <label>Mini Batch Size</label>
+                        <input type="number" id="mini-batch-size" value="4" min="1" max="64">
+                        <div class="hint">SCSG inner loop trajectories (lower = faster)</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Delta (confidence)</label>
+                        <input type="number" id="delta" value="0.6" min="0.01" max="1" step="0.05">
+                        <div class="hint">Byzantine filter confidence parameter</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Episode Length</label>
+                        <input type="number" id="max-episode-len" value="500" min="50" max="10000" step="50">
+                    </div>
+                    <div class="form-group">
+                        <label>Hidden Units</label>
+                        <select id="hidden-units">
+                            <option value="16,16">16, 16 (small)</option>
+                            <option value="32,32">32, 32 (medium)</option>
+                            <option value="64,64">64, 64 (large)</option>
+                            <option value="128,128">128, 128 (extra large)</option>
+                        </select>
+                        <div class="hint">Policy network layer sizes</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Activation</label>
+                        <select id="activation">
+                            <option value="ReLU">ReLU</option>
+                            <option value="Tanh">Tanh</option>
+                        </select>
+                    </div>
+                </div>
+            </details>
+
+            <button class="btn btn-primary" id="btn-start" onclick="startExperiment()">
+                Start Experiment
+            </button>
+            <button class="btn btn-danger" id="btn-stop" onclick="stopExperiment()" disabled>
+                Stop
+            </button>
+            <a href="http://localhost:6006" target="_blank" class="btn btn-tensorboard">
+                Open TensorBoard
+            </a>
+
+            <div class="divider"></div>
+
+            <h2>Available Strategies</h2>
+            <div id="strategies-list"></div>
+        </div>
+
+        <!-- Main content -->
+        <div class="main">
+            <!-- Stats -->
+            <div class="stats-bar">
+                <div class="stat-card">
+                    <div class="value" id="stat-round">0</div>
+                    <div class="label">Current Round</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="stat-reward">--</div>
+                    <div class="label">Avg Reward</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="stat-good">0</div>
+                    <div class="label">Good Agents</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="stat-steps">0</div>
+                    <div class="label">SCSG Steps</div>
+                </div>
+            </div>
+
+            <!-- Learning curve chart -->
+            <div class="chart-card">
+                <h3>Learning Curve</h3>
+                <div id="learning-chart" style="height: 350px;"></div>
+            </div>
+
+            <!-- Per-client reward band -->
+            <div class="chart-card">
+                <h3>Per-Client Reward Band</h3>
+                <div id="client-rewards-chart" style="height: 250px;"></div>
+            </div>
+
+            <!-- Communication statistics -->
+            <div class="chart-card">
+                <h3>Communication Statistics (Active vs Skipped Workers)</h3>
+                <div id="comm-chart" style="height: 220px;"></div>
+            </div>
+
+            <!-- Aggregated parameter norm -->
+            <div class="chart-card">
+                <h3>Global Policy Parameter Norm (L2)</h3>
+                <div id="param-norm-chart" style="height: 220px;"></div>
+            </div>
+
+            <!-- Workers visualization -->
+            <div class="chart-card">
+                <h3>Workers</h3>
+                <div class="workers-grid" id="workers-grid"></div>
+            </div>
+
+            <!-- Strategy comparison -->
+            <div class="chart-card">
+                <h3>Strategy Comparison</h3>
+                <div class="strategy-pills" id="strategy-pills"></div>
+                <div id="comparison-chart" style="height: 300px;"></div>
+            </div>
+
+            <!-- Log -->
+            <div class="chart-card">
+                <h3>Training Log</h3>
+                <div class="log-area" id="log-area">
+                    <div class="log-entry">Ready. Configure and start an experiment.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let isRunning = false;
+        let experimentData = {
+            rounds: [], rewards: [],
+            crMean: [], crMin: [], crMax: [],
+            active: [], skipped: [],
+            paramNorm: []
+        };
+        let comparisonData = {};
+
+        // Socket connection
+        const socket = io();
+
+        // Strategy descriptions
+        const strategies = {
+            'fedpg-br': { name: 'FedPG-BR', desc: 'Byzantine filtering + SCSG variance reduction.', color: '#2563eb' },
+            'svrpg': { name: 'SVRPG', desc: 'SCSG variance reduction only. No Byzantine protection.', color: '#d97706' },
+            'gpomdp': { name: 'GPOMDP', desc: 'Simple gradient averaging. Baseline method.', color: '#16a34a' },
+            'independent': { name: 'Independent RL', desc: 'No federation: each worker trains independently, only worker-0 gradient applied.', color: '#0891b2' },
+            'centralized': { name: 'Centralized', desc: 'Oracle upper bound: all workers treated as one. No federation overhead.', color: '#475569' },
+        };
+
+        // Environment defaults
+        const envDefaults = {
+            'Pursuit-v4': { rounds: 200, batch_size: 16, lr: 0.001, sigma: 0.1, gamma: 0.99, mini_batch: 4, delta: 0.6, max_ep: 500, hidden: '64,64', activation: 'Tanh' },
+            'SimpleSpread-v3': { rounds: 200, batch_size: 16, lr: 0.001, sigma: 0.1, gamma: 0.99, mini_batch: 4, delta: 0.6, max_ep: 100, hidden: '64,64', activation: 'Tanh' },
+            'CartPole-v1': { rounds: 312, batch_size: 16, lr: 0.001, sigma: 0.06, gamma: 0.999, mini_batch: 4, delta: 0.6, max_ep: 500, hidden: '16,16', activation: 'ReLU' },
+            'LunarLander-v3': { rounds: 323, batch_size: 32, lr: 0.001, sigma: 0.07, gamma: 0.99, mini_batch: 8, delta: 0.6, max_ep: 1000, hidden: '64,64', activation: 'Tanh' },
+            'HalfCheetah-v5': { rounds: 208, batch_size: 48, lr: 0.00008, sigma: 0.9, gamma: 0.995, mini_batch: 16, delta: 0.6, max_ep: 1000, hidden: '64,64', activation: 'Tanh' },
+            'MountainCar-v0': { rounds: 200, batch_size: 24, lr: 0.001, sigma: 0.08, gamma: 0.99, mini_batch: 6, delta: 0.6, max_ep: 1000, hidden: '32,32', activation: 'Tanh' },
+            'Acrobot-v1': { rounds: 200, batch_size: 24, lr: 0.001, sigma: 0.08, gamma: 0.99, mini_batch: 6, delta: 0.6, max_ep: 500, hidden: '32,32', activation: 'Tanh' },
+        };
+
+        // Initialize charts
+        function initCharts() {
+            Plotly.newPlot('learning-chart', [{
+                x: [], y: [],
+                type: 'scatter', mode: 'lines',
+                name: 'Reward',
+                line: { color: '#2563eb', width: 2 }
+            }], {
+                margin: { t: 10, r: 20, b: 40, l: 50 },
+                xaxis: { title: 'Round' },
+                yaxis: { title: 'Average Reward' },
+                plot_bgcolor: '#f8fafc',
+                paper_bgcolor: 'white',
+            }, { responsive: true });
+
+            // Per-client reward band: shaded area + mean line
+            Plotly.newPlot('client-rewards-chart', [
+                {
+                    x: [], y: [],
+                    type: 'scatter', mode: 'lines',
+                    name: 'Max', line: { color: 'rgba(37,99,235,0.2)', width: 0 },
+                    showlegend: false
+                },
+                {
+                    x: [], y: [],
+                    type: 'scatter', mode: 'lines',
+                    name: 'Min', fill: 'tonexty',
+                    fillcolor: 'rgba(37,99,235,0.15)',
+                    line: { color: 'rgba(37,99,235,0.2)', width: 0 },
+                    showlegend: false
+                },
+                {
+                    x: [], y: [],
+                    type: 'scatter', mode: 'lines',
+                    name: 'Mean Client Return',
+                    line: { color: '#2563eb', width: 2 }
+                }
+            ], {
+                margin: { t: 10, r: 20, b: 40, l: 50 },
+                xaxis: { title: 'Round' },
+                yaxis: { title: 'Client Return' },
+                plot_bgcolor: '#f8fafc',
+                paper_bgcolor: 'white',
+            }, { responsive: true });
+
+            // Communication stats: stacked bar
+            Plotly.newPlot('comm-chart', [
+                {
+                    x: [], y: [],
+                    type: 'bar', name: 'Active',
+                    marker: { color: '#16a34a' }
+                },
+                {
+                    x: [], y: [],
+                    type: 'bar', name: 'Skipped',
+                    marker: { color: '#94a3b8' }
+                }
+            ], {
+                barmode: 'stack',
+                margin: { t: 10, r: 20, b: 40, l: 50 },
+                xaxis: { title: 'Round' },
+                yaxis: { title: 'Workers' },
+                plot_bgcolor: '#f8fafc',
+                paper_bgcolor: 'white',
+            }, { responsive: true });
+
+            // Param norm line
+            Plotly.newPlot('param-norm-chart', [{
+                x: [], y: [],
+                type: 'scatter', mode: 'lines',
+                name: 'Param Norm',
+                line: { color: '#7c3aed', width: 2 }
+            }], {
+                margin: { t: 10, r: 20, b: 40, l: 50 },
+                xaxis: { title: 'Round' },
+                yaxis: { title: 'L2 Norm' },
+                plot_bgcolor: '#f8fafc',
+                paper_bgcolor: 'white',
+            }, { responsive: true });
+
+            Plotly.newPlot('comparison-chart', [], {
+                margin: { t: 10, r: 20, b: 40, l: 50 },
+                xaxis: { title: 'Round' },
+                yaxis: { title: 'Average Reward' },
+                plot_bgcolor: '#f8fafc',
+                paper_bgcolor: 'white',
+                showlegend: true,
+            }, { responsive: true });
+        }
+
+        function updateStrategyInfo() {
+            const method = document.getElementById('method-select').value;
+            const info = strategies[method];
+            if (info) {
+                document.getElementById('strategy-info').innerHTML =
+                    `<div class="name">${info.name}</div>${info.desc}`;
+            } else {
+                document.getElementById('strategy-info').innerHTML =
+                    `<div class="name">${method}</div>Custom strategy`;
+            }
+        }
+
+        function updateWorkers(numWorkers, numByzantine, goodAgents) {
+            const grid = document.getElementById('workers-grid');
+            let html = '';
+            for (let i = 0; i < numWorkers; i++) {
+                const isByz = i >= (numWorkers - numByzantine);
+                const isGood = goodAgents ? goodAgents.includes(i) : !isByz;
+                const cls = isByz ? 'byzantine' : (isGood ? 'good' : '');
+                const icon = isByz ? '&#9888;' : '&#9679;';
+                html += `<div class="worker ${cls}">
+                    <div class="icon">${icon}</div>
+                    W${i + 1}${isByz ? ' (Byz)' : ''}
+                </div>`;
+            }
+            grid.innerHTML = html;
+        }
+
+        function addLog(msg) {
+            const log = document.getElementById('log-area');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = msg;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+            // Keep last 100 entries
+            while (log.children.length > 100) log.removeChild(log.firstChild);
+        }
+
+        function startExperiment() {
+            const config = {
+                env: document.getElementById('env-select').value,
+                method: document.getElementById('method-select').value,
+                num_workers: parseInt(document.getElementById('num-workers').value),
+                num_byzantine: parseInt(document.getElementById('num-byzantine').value),
+                num_rounds: parseInt(document.getElementById('num-rounds').value),
+                attack_type: document.getElementById('attack-type').value,
+                batch_size: parseInt(document.getElementById('batch-size').value),
+                learning_rate: parseFloat(document.getElementById('learning-rate').value),
+                sigma: parseFloat(document.getElementById('sigma').value),
+                gamma: parseFloat(document.getElementById('gamma').value),
+                mini_batch_size: parseInt(document.getElementById('mini-batch-size').value),
+                delta: parseFloat(document.getElementById('delta').value),
+                max_episode_len: parseInt(document.getElementById('max-episode-len').value),
+                hidden_units: document.getElementById('hidden-units').value,
+                activation: document.getElementById('activation').value,
+                round_timeout: parseInt(document.getElementById('round-timeout').value),
+                seed: parseInt(document.getElementById('seed').value || '42'),
+            };
+
+            isRunning = true;
+            experimentData = {
+                rounds: [], rewards: [],
+                crMean: [], crMin: [], crMax: [],
+                active: [], skipped: [],
+                paramNorm: []
+            };
+            document.getElementById('btn-start').disabled = true;
+            document.getElementById('btn-stop').disabled = false;
+            document.getElementById('status-dot').className = 'status-dot running';
+            const stratLabel = strategies[config.method] ? strategies[config.method].name : config.method;
+            document.getElementById('status-text').textContent = `Running ${stratLabel} on ${config.env}`;
+
+            updateWorkers(config.num_workers, config.num_byzantine);
+            addLog(`<span class="method">[${config.method.toUpperCase()}]</span> Starting experiment: ${config.env}, K=${config.num_workers}, B=${config.num_byzantine}, rounds=${config.num_rounds}, seed=${config.seed}`);
+
+            socket.emit('start_experiment', config);
+        }
+
+        function stopExperiment() {
+            isRunning = false;
+            document.getElementById('btn-start').disabled = false;
+            document.getElementById('btn-stop').disabled = true;
+            document.getElementById('status-dot').className = 'status-dot idle';
+            document.getElementById('status-text').textContent = 'Stopped';
+            addLog('Experiment stopped by user.');
+            socket.emit('stop_experiment');
+        }
+
+        // Socket events
+        socket.on('connect', () => {
+            addLog('Connected to server.');
+            loadStrategies();
+            if (isRunning) {
+                document.getElementById('btn-start').disabled = true;
+                document.getElementById('btn-stop').disabled = false;
+            }
+        });
+
+        socket.on('log', (data) => {
+            addLog(`<span class="method">[SERVER]</span> ${data.message}`);
+        });
+
+        socket.on('metrics', (data) => {
+            const round = data.round;
+            const reward = data.server_avg_reward || data.avg_reward || 0;
+            const goodAgents = data.num_good_agents || 0;
+            const scsgSteps = data.scsg_steps || 0;
+
+            experimentData.rounds.push(round);
+            experimentData.rewards.push(reward);
+
+            // Per-client reward data
+            const crMeanVal = (data.client_reward_mean !== undefined) ? data.client_reward_mean : reward;
+            const crMinVal  = (data.client_reward_min  !== undefined) ? data.client_reward_min  : reward;
+            const crMaxVal  = (data.client_reward_max  !== undefined) ? data.client_reward_max  : reward;
+            experimentData.crMean.push(crMeanVal);
+            experimentData.crMin.push(crMinVal);
+            experimentData.crMax.push(crMaxVal);
+
+            // Communication stats
+            const activeVal  = (data.num_active_workers  !== undefined) ? data.num_active_workers  : goodAgents;
+            const skippedVal = (data.num_skipped_workers !== undefined) ? data.num_skipped_workers : 0;
+            experimentData.active.push(activeVal);
+            experimentData.skipped.push(skippedVal);
+
+            // Param norm
+            const normVal = (data.param_norm !== undefined) ? data.param_norm : null;
+            if (normVal !== null) experimentData.paramNorm.push(normVal);
+
+            // Update stats
+            document.getElementById('stat-round').textContent = round;
+            document.getElementById('stat-reward').textContent = reward.toFixed(1);
+            document.getElementById('stat-good').textContent = goodAgents;
+            document.getElementById('stat-steps').textContent = scsgSteps;
+
+            // Update learning curve
+            Plotly.update('learning-chart', {
+                x: [experimentData.rounds],
+                y: [experimentData.rewards]
+            });
+
+            // Update per-client reward band (3 traces: max, min, mean)
+            Plotly.update('client-rewards-chart', {
+                x: [experimentData.rounds, experimentData.rounds, experimentData.rounds],
+                y: [experimentData.crMax, experimentData.crMin, experimentData.crMean]
+            }, {}, [0, 1, 2]);
+
+            // Update comm chart (2 traces: active, skipped)
+            Plotly.update('comm-chart', {
+                x: [experimentData.rounds, experimentData.rounds],
+                y: [experimentData.active, experimentData.skipped]
+            }, {}, [0, 1]);
+
+            // Update param norm chart
+            if (experimentData.paramNorm.length > 0) {
+                const normRounds = experimentData.rounds.slice(0, experimentData.paramNorm.length);
+                Plotly.update('param-norm-chart', {
+                    x: [normRounds],
+                    y: [experimentData.paramNorm]
+                });
+            }
+
+            // Log
+            addLog(`<span class="round-num">Round ${round}</span>: reward=<span class="reward">${reward.toFixed(1)}</span>, good_agents=${goodAgents}, scsg_steps=${scsgSteps}`);
+        });
+
+        socket.on('experiment_done', (data) => {
+            isRunning = false;
+            document.getElementById('btn-start').disabled = false;
+            document.getElementById('btn-stop').disabled = true;
+            document.getElementById('status-dot').className = 'status-dot idle';
+            document.getElementById('status-text').textContent = 'Completed';
+
+            // Store for comparison
+            const method = data.method || document.getElementById('method-select').value;
+            comparisonData[method] = { rounds: [...experimentData.rounds], rewards: [...experimentData.rewards] };
+            updateComparisonChart();
+
+            const finalReward = experimentData.rewards.length > 0
+                ? experimentData.rewards[experimentData.rewards.length - 1].toFixed(1)
+                : '--';
+            addLog(`<span class="method">[DONE]</span> Experiment completed (exit code ${data.exit_code}). Final reward: <span class="reward">${finalReward}</span>`);
+        });
+
+        function updateComparisonChart() {
+            const traces = [];
+            for (const [method, data] of Object.entries(comparisonData)) {
+                const info = strategies[method] || { name: method, color: '#999' };
+                traces.push({
+                    x: data.rounds,
+                    y: data.rewards,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: info.name,
+                    line: { color: info.color, width: 2 },
+                });
+            }
+            Plotly.react('comparison-chart', traces, {
+                margin: { t: 10, r: 20, b: 40, l: 50 },
+                xaxis: { title: 'Round' },
+                yaxis: { title: 'Average Reward' },
+                plot_bgcolor: '#f8fafc',
+                paper_bgcolor: 'white',
+                showlegend: true,
+            });
+
+            // Update pills
+            const pills = document.getElementById('strategy-pills');
+            pills.innerHTML = Object.keys(comparisonData).map(m => {
+                const info = strategies[m] || { name: m, color: '#999' };
+                return `<span class="pill active" style="background:${info.color};border-color:${info.color}">${info.name}</span>`;
+            }).join('');
+        }
+
+        async function loadStrategies() {
+            try {
+                const res = await fetch('/api/strategies');
+                const data = await res.json();
+                const list = document.getElementById('strategies-list');
+                list.innerHTML = Object.entries(data).map(([name, desc]) =>
+                    `<div style="margin-bottom:8px;font-size:0.85rem;">
+                        <strong>${name}</strong><br>
+                        <span style="color:var(--text-muted)">${desc}</span>
+                    </div>`
+                ).join('');
+
+                // Add any strategies not already in the dropdown
+                const select = document.getElementById('method-select');
+                const existing = Array.from(select.options).map(o => o.value);
+                Object.entries(data).forEach(([name, desc]) => {
+                    if (!existing.includes(name)) {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = `${name} (custom)`;
+                        select.appendChild(opt);
+                    }
+                });
+            } catch (e) {
+                // Use default list
+                const list = document.getElementById('strategies-list');
+                list.innerHTML = Object.entries(strategies).map(([name, info]) =>
+                    `<div style="margin-bottom:8px;font-size:0.85rem;">
+                        <strong>${name}</strong><br>
+                        <span style="color:var(--text-muted)">${info.desc}</span>
+                    </div>`
+                ).join('');
+            }
+        }
+
+        // Auto-update env defaults
+        document.getElementById('env-select').addEventListener('change', function() {
+            const defaults = envDefaults[this.value];
+            if (defaults) {
+                document.getElementById('num-rounds').value = defaults.rounds;
+                document.getElementById('batch-size').value = defaults.batch_size;
+                document.getElementById('learning-rate').value = defaults.lr;
+                document.getElementById('sigma').value = defaults.sigma;
+                document.getElementById('gamma').value = defaults.gamma;
+                document.getElementById('mini-batch-size').value = defaults.mini_batch;
+                document.getElementById('delta').value = defaults.delta;
+                document.getElementById('max-episode-len').value = defaults.max_ep;
+                document.getElementById('hidden-units').value = defaults.hidden;
+                document.getElementById('activation').value = defaults.activation;
+            }
+        });
+
+        // Init
+        initCharts();
+        updateWorkers(10, 0);
+        loadStrategies();
+    </script>
+</body>
+</html>

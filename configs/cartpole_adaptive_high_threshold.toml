@@ -1,0 +1,9 @@
+# FedPG-BR on CartPole-v1 with aggressive adaptive communication (fewer updates)
+env = "CartPole-v1"
+num-server-rounds = 150
+num-workers = 10
+num-byzantine = 0
+use-adaptive-communication = true
+divergence-threshold = 0.5
+divergence-metric = "l2"
+use-fedpg-br = false

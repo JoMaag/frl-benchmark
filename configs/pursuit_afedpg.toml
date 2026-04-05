@@ -1,0 +1,7 @@
+# FedPG-BR on Pursuit-v4, clean setting (no Byzantine)
+env = "Pursuit-v4"
+num-server-rounds = 350
+num-workers = 10
+num-byzantine = 0
+method = "fedpg-br"
+use-adaptive-communication = false

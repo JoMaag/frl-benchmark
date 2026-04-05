@@ -1,0 +1,8 @@
+# GPOMDP on CartPole-v1, 30% sign-flip Byzantine workers
+env = "CartPole-v1"
+num-server-rounds = 350
+num-workers = 10
+num-byzantine = 3
+method = "gpomdp"
+attack-type = "sign-flip"
+use-adaptive-communication = false

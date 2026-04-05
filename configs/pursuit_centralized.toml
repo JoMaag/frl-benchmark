@@ -1,0 +1,8 @@
+# Centralized training on Pursuit-v4 (upper bound baseline, 1 worker with full batch)
+env = "Pursuit-v4"
+num-server-rounds = 350
+num-workers = 1
+num-byzantine = 0
+method = "centralized"
+batch-size = 160
+use-adaptive-communication = false

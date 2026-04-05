@@ -1,0 +1,7 @@
+# FedPG-BR on HalfCheetah-v5 — requires MuJoCo, not evaluated in this thesis
+env = "HalfCheetah-v5"
+num-server-rounds = 208
+num-workers = 10
+num-byzantine = 0
+method = "fedpg-br"
+use-adaptive-communication = false

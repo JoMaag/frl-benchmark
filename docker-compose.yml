@@ -1,0 +1,37 @@
+# Flower FRL Benchmark Docker Compose
+# Starts only the dashboard. Training is launched via the dashboard UI.
+#
+# Usage:
+#   docker-compose up          # Start dashboard at http://localhost:8050/experiment
+#   docker-compose up --build  # Rebuild image and start dashboard
+
+services:
+  # Web Dashboard - monitoring UI at http://localhost:8050/experiment
+  # Use the dashboard to configure and launch training runs.
+  dashboard:
+    build: .
+    image: frl-benchmark:latest
+    container_name: frl-benchmark
+    command: frl-dashboard
+    ports:
+      - "8050:8050"
+      - "6006:6006"
+    networks:
+      - frl-benchmark-network
+    mem_limit: 12g
+    shm_size: 3g
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - frl-runs:/app/runs
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+      - RUNNING_IN_DOCKER=1
+      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-frl_benchmark}
+
+networks:
+  frl-benchmark-network:
+    driver: bridge
+
+volumes:
+  frl-runs:

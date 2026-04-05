@@ -1,0 +1,76 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "flower-frl-benchmark"
+version = "0.1.0"
+description = "Flower FRL Benchmark - Federated Reinforcement Learning Testbench"
+requires-python = ">=3.9"
+dependencies = [
+    "flwr[simulation]==1.20.0",
+    "torch>=1.12.0",
+    "numpy>=1.21.0",
+    "gymnasium[box2d]>=0.26.0",
+    "gymnasium[mujoco]>=0.26.0",
+    "chardet",
+    "pettingzoo[mpe,sisl]>=1.24.0",
+    "supersuit>=3.9.0",
+    "tensorboard>=2.11.0",
+    "matplotlib>=3.5.0",
+]
+
+[project.optional-dependencies]
+dashboard = [
+    "flask>=2.3.0,<3.0.0",
+    "flask-cors>=4.0.0",
+    "flask-socketio>=5.3.6",
+    "python-socketio>=5.9.0",
+    "docker>=6.0.0",
+]
+
+[project.scripts]
+frl-dashboard = "frl_benchmark.dashboard:start_dashboard"
+
+[tool.hatch.build.targets.wheel]
+packages = ["frl_benchmark"]
+
+[tool.flwr.app]
+publisher = "flower-frl-benchmark"
+
+[tool.flwr.app.components]
+serverapp = "frl_benchmark.server_app:app"
+clientapp = "frl_benchmark.client_app:app"
+
+[tool.flwr.app.config]
+env = "LunarLander-v3"
+num-server-rounds = 150
+num-workers = 3
+num-byzantine = 0
+attack-type = "random-noise"
+use-fedpg-br = false
+method = "fedpg-br"
+# Advanced tuning (overridable from dashboard)
+batch-size = 0
+lr = 0.0
+sigma = 0.0
+gamma = 0.0
+mini-batch-size = 0
+delta = 0.0
+max-episode-len = 0
+round-timeout = 600
+seed = 42
+hidden-units = ""
+activation = ""
+# Adaptive communication settings
+use-adaptive-communication = false
+divergence-threshold = 0.1
+divergence-metric = "l2"
+
+[tool.flwr.federations]
+default = "local-simulation"
+
+[tool.flwr.federations.local-simulation]
+options.num-supernodes = 10
+options.backend.client-resources.num-cpus = 4
+options.backend.client-resources.num-gpus = 0.0

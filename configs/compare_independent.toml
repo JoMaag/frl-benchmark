@@ -1,0 +1,7 @@
+# Independent learning on CartPole-v1 (lower bound baseline)
+env = "CartPole-v1"
+num-server-rounds = 312
+num-workers = 10
+num-byzantine = 0
+method = "independent"
+use-adaptive-communication = false
